@@ -5,6 +5,7 @@ import pandas as pd
 import numpy as np
 from datetime import datetime
 from sklearn.ensemble import RandomForestClassifier
+from sklearn.pipeline import Pipeline
 import pickle
 import os
 
@@ -19,47 +20,82 @@ def get_connection():
     return psycopg2.connect(**db_config)
 
 # ---------------------------
-# Função principal de atualização do modelo
+# Função para atualizar o modelo de churn
 # ---------------------------
 def atualizar_modelo():
-    print("🧠 Coletando dados de frequência...")
+    print("🧠 Coletando dados de frequência e plano...")
     con = get_connection()
 
+    # ---------------------------
+    # Consulta com métricas por aluno
+    # ---------------------------
     query = """
-        SELECT aluno_id, MAX(data_checkin) as ultimo_checkin
-        FROM checkins
-        GROUP BY aluno_id
+        SELECT 
+            a.id AS aluno_id,
+            a.plano_id,
+            MAX(c.data_checkin) AS ultimo_checkin,
+            COUNT(*) FILTER (WHERE c.data_checkin >= NOW() - INTERVAL '28 days') / 4.0 AS freq_semanal,
+            AVG(EXTRACT(EPOCH FROM c.duracao)/60.0) AS duracao_media
+        FROM alunos a
+        LEFT JOIN checkins c ON a.id = c.aluno_id
+        GROUP BY a.id, a.plano_id
     """
     df = pd.read_sql_query(query, con)
     con.close()
 
-    df["dias_sem_checkin"] = (datetime.now() - df["ultimo_checkin"]).dt.days
+    # ---------------------------
+    # Tratamento de dados
+    # ---------------------------
+    df["dias_sem_checkin"] = (datetime.now() - df["ultimo_checkin"]).dt.days.fillna(999)
+    df["freq_semanal"] = df["freq_semanal"].fillna(0)
+    df["duracao_media"] = df["duracao_media"].fillna(0)
+
+    # ---------------------------
+    # Variável alvo: churn
+    # ---------------------------
     df["churn"] = df["dias_sem_checkin"].apply(lambda d: 1 if d > 15 else 0)
 
-    X = df[["dias_sem_checkin"]]
+    # ---------------------------
+    # Seleção de variáveis preditoras
+    # ---------------------------
+    X = df[["dias_sem_checkin", "freq_semanal", "duracao_media", "plano_id"]]
     y = df["churn"]
 
-    print("🤖 Treinando modelo de churn...")
-    modelo = RandomForestClassifier(n_estimators=100, random_state=42)
-    modelo.fit(X, y)
+    print("🤖 Treinando modelo de churn com múltiplas variáveis...")
 
-    # Salvar o modelo
+    # ---------------------------
+    # Codificação de plano_id e treinamento
+    # ---------------------------
+    X_encoded = pd.get_dummies(X, columns=["plano_id"])
+
+    modelo = Pipeline([
+        ("clf", RandomForestClassifier(n_estimators=100, random_state=42))
+    ])
+
+    modelo.fit(X_encoded, y)
+
+    # ---------------------------
+    # Salvando o modelo treinado
+    # ---------------------------
     if not os.path.exists("modelos"):
         os.makedirs("modelos")
 
     with open("modelos/modelo_churn.pkl", "wb") as f:
         pickle.dump(modelo, f)
 
-    print("✅ Modelo de churn atualizado e salvo com sucesso.")
+    print("✅ Modelo de churn atualizado com sucesso.")
 
 # ---------------------------
-# Callback da fila
+# Callback do consumidor da fila
 # ---------------------------
 def callback(ch, method, properties, body):
     print("🧠 Atualizando modelo de churn com base nos dados reais...")
     atualizar_modelo()
     ch.basic_ack(delivery_tag=method.delivery_tag)
 
+# ---------------------------
+# Conexão com RabbitMQ
+# ---------------------------
 connection = pika.BlockingConnection(pika.ConnectionParameters("localhost"))
 channel = connection.channel()
 

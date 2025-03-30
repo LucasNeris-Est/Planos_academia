@@ -1,7 +1,9 @@
 from fastapi import APIRouter, HTTPException, Path
 from pydantic import BaseModel, Field
-from datetime import datetime, timedelta
+from datetime import datetime
+import pandas as pd
 import psycopg2
+import pickle
 import json
 import os
 
@@ -103,41 +105,88 @@ def obter_frequencia(id: int = Path(..., description="ID do aluno", example=42))
 # ----------------------------
 # Endpoint para verificar risco de churn (desistência)
 # ----------------------------
-@router.get("/{id}/risco-churn", summary="Verificar risco de churn (desistência)")
+@router.get("/{id}/risco-churn", summary="Obter risco de churn via modelo")
 def risco_churn(id: int = Path(..., description="ID do aluno", example=42)):
     """
-    Analisa a frequência do aluno e retorna a probabilidade de desistência com base no tempo sem check-in.
+    Utiliza o modelo treinado para prever a probabilidade de churn de um aluno com base em:
+    - Dias sem check-in
+    - Frequência semanal
+    - Duração média das visitas
+    - Tipo de plano
     """
     try:
+        # ---------------------------
+        # Conectar e buscar métricas do aluno
+        # ---------------------------
         con = get_connection()
-        cur = con.cursor()
-        cur.execute("""
-            SELECT data_checkin
-            FROM checkins
-            WHERE aluno_id = %s
-            ORDER BY data_checkin DESC
-        """, (id,))
-        checkins = cur.fetchall()
-        cur.close()
+        query = """
+            SELECT 
+                a.id AS aluno_id,
+                a.plano_id,
+                MAX(c.data_checkin) AS ultimo_checkin,
+                COUNT(*) FILTER (WHERE c.data_checkin >= NOW() - INTERVAL '28 days') / 4.0 AS freq_semanal,
+                AVG(EXTRACT(EPOCH FROM c.duracao)/60.0) AS duracao_media
+            FROM alunos a
+            LEFT JOIN checkins c ON a.id = c.aluno_id
+            WHERE a.id = %s
+            GROUP BY a.id, a.plano_id
+        """
+        df = pd.read_sql_query(query, con, params=(id,))
         con.close()
 
-        if not checkins:
-            return {"aluno_id": id, "risco_churn": "alto", "motivo": "Sem check-ins registrados"}
+        if df.empty:
+            return {"aluno_id": id, "risco_churn": "alto", "motivo": "Aluno não encontrado ou sem check-ins"}
 
-        ultimo_checkin = checkins[0][0]
-        dias_sem_frequencia = (datetime.now() - ultimo_checkin).days
+        df["dias_sem_checkin"] = (datetime.now() - df["ultimo_checkin"]).dt.days.fillna(999)
+        df["freq_semanal"] = df["freq_semanal"].fillna(0)
+        df["duracao_media"] = df["duracao_media"].fillna(0)
 
-        if dias_sem_frequencia > 15:
+        # ---------------------------
+        # Preparar entrada para o modelo
+        # ---------------------------
+        X_input = df[["dias_sem_checkin", "freq_semanal", "duracao_media", "plano_id"]]
+        X_encoded = pd.get_dummies(X_input)
+
+        # ---------------------------
+        # Carregar modelo treinado
+        # ---------------------------
+        modelo_path = "modelos/modelo_churn.pkl"
+        if not os.path.exists(modelo_path):
+            raise HTTPException(status_code=500, detail="Modelo de churn não encontrado. Execute o treinamento primeiro.")
+
+        with open(modelo_path, "rb") as f:
+            modelo = pickle.load(f)
+
+        # ---------------------------
+        # Alinhar colunas com as do modelo (em caso de plano_id faltante)
+        # ---------------------------
+        modelo_cols = modelo.named_steps["clf"].feature_names_in_
+        for col in modelo_cols:
+            if col not in X_encoded.columns:
+                X_encoded[col] = 0  # adiciona colunas faltantes com 0
+        X_encoded = X_encoded[modelo_cols]  # garante mesma ordem
+
+        # ---------------------------
+        # Previsão e resposta
+        # ---------------------------
+        prob = modelo.predict_proba(X_encoded)[0][1]  # probabilidade de churn
+
+        if prob > 0.7:
             risco = "alto"
-        elif dias_sem_frequencia > 7:
+        elif prob > 0.4:
             risco = "moderado"
         else:
             risco = "baixo"
 
         return {
             "aluno_id": id,
-            "dias_sem_frequencia": dias_sem_frequencia,
+            "dias_sem_frequencia": int(df['dias_sem_checkin'].values[0]),
+            "frequencia_semanal": float(df["freq_semanal"].values[0]),
+            "duracao_media": float(df["duracao_media"].values[0]),
+            "plano_id": int(df["plano_id"].values[0]),
+            "probabilidade_churn": round(prob, 4),
             "risco_churn": risco
         }
+
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
