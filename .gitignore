@@ -1,0 +1,18 @@
+# Evitar o envio da pasta de ambiente virtual
+venv/
+.env/
+__pycache__/
+*.pyc
+
+# Evitar arquivos de configurações sensíveis
+banco.json
+
+# Arquivos temporários / IDEs
+*.log
+*.sqlite3
+*.db
+*.pkl
+*.csv
+.DS_Store
+.idea/
+.vscode/
