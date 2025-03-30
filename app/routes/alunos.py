@@ -5,7 +5,9 @@ import psycopg2
 import json
 import os
 
-# Carrega config do banco
+# ----------------------------
+# Configuração do banco
+# ----------------------------
 dir_atual = os.path.dirname(__file__)
 dir_pai = os.path.dirname(dir_atual)
 dir_avo = os.path.dirname(dir_pai)
@@ -18,6 +20,9 @@ with open(config_path, "r") as f:
 def get_connection():
     return psycopg2.connect(**db_config)
 
+# ----------------------------
+# Inicializa o router
+# ----------------------------
 router = APIRouter()
 
 # ---------------------
@@ -46,6 +51,9 @@ class CheckinRequest(BaseModel):
 # ENDPOINTS
 # ---------------------
 
+# ----------------------------
+# Endpoint para registrar novo aluno
+# ----------------------------
 @router.post("/registro", summary="Registrar novo aluno", response_description="Aluno criado com sucesso")
 def registrar_aluno(aluno: AlunoCreate):
     """
@@ -67,7 +75,9 @@ def registrar_aluno(aluno: AlunoCreate):
     except Exception as e:
         raise HTTPException(status_code=400, detail=str(e))
 
-
+# ----------------------------
+# Endpoint para retornar dados de frequência do aluno
+# ----------------------------
 @router.get("/{id}/frequencia", summary="Histórico de check-ins do aluno")
 def obter_frequencia(id: int = Path(..., description="ID do aluno", example=42)):
     """
@@ -90,6 +100,9 @@ def obter_frequencia(id: int = Path(..., description="ID do aluno", example=42))
         raise HTTPException(status_code=400, detail=str(e))
 
 
+# ----------------------------
+# Endpoint para verificar risco de churn (desistência)
+# ----------------------------
 @router.get("/{id}/risco-churn", summary="Verificar risco de churn (desistência)")
 def risco_churn(id: int = Path(..., description="ID do aluno", example=42)):
     """

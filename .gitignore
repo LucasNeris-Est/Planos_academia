@@ -1,5 +1,7 @@
 # Evitar o envio da pasta de ambiente virtual
 venv/
+venv
+.venv
 .env/
 __pycache__/
 *.pyc

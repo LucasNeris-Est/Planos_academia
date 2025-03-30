@@ -1,19 +1,50 @@
 import pika
 import json
-import time
+import psycopg2
+import pandas as pd
 from datetime import datetime
+import os
 
-def callback(ch, method, properties, body):
-    data = json.loads(body)
-    print(f"📊 Gerando relatório diário de frequência...")
+# Caminho absoluto até o banco.json na pasta anterior
+config_path = os.path.join(os.path.dirname(os.path.dirname(__file__)), "banco.json")
 
-    # Simula tempo de geração
-    time.sleep(3)
+# ---------------------------
+# Configuração do banco
+# ---------------------------
+with open(config_path, "r") as f:
+    db_config = json.load(f)
 
-    # Aqui você geraria um relatório real com acesso ao banco de dados
-    nome_arquivo = f"relatorio_frequencia_{datetime.now().strftime('%Y%m%d')}.csv"
+def get_connection():
+    return psycopg2.connect(**db_config)
+
+# ---------------------------
+# Função principal de geração de relatórios
+# ---------------------------
+def gerar_relatorio():
+    con = get_connection()
+    query = """
+        SELECT a.id AS aluno_id, a.nome, c.data_checkin
+        FROM checkins c
+        JOIN alunos a ON a.id = c.aluno_id
+        WHERE c.data_checkin::date = CURRENT_DATE
+        ORDER BY c.data_checkin DESC
+    """
+    df = pd.read_sql_query(query, con)
+    con.close()
+
+    if not os.path.exists("relatorios"):
+        os.makedirs("relatorios")
+
+    nome_arquivo = f"relatorios/relatorio_frequencia_{datetime.now().strftime('%Y%m%d')}.csv"
+    df.to_csv(nome_arquivo, index=False)
     print(f"✔️ Relatório gerado: {nome_arquivo}")
 
+# ---------------------------
+# Callback da fila
+# ---------------------------
+def callback(ch, method, properties, body):
+    print(f"📊 Gerando relatório diário de frequência...")
+    gerar_relatorio()
     ch.basic_ack(delivery_tag=method.delivery_tag)
 
 connection = pika.BlockingConnection(pika.ConnectionParameters("localhost"))
