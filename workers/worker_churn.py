@@ -30,15 +30,19 @@ def atualizar_modelo():
     # Consulta com métricas por aluno
     # ---------------------------
     query = """
-        SELECT 
-            a.id AS aluno_id,
-            a.plano_id,
-            MAX(c.data_checkin) AS ultimo_checkin,
-            COUNT(*) FILTER (WHERE c.data_checkin >= NOW() - INTERVAL '28 days') / 4.0 AS freq_semanal,
-            AVG(EXTRACT(EPOCH FROM c.duracao)/60.0) AS duracao_media
-        FROM alunos a
-        LEFT JOIN checkins c ON a.id = c.aluno_id
-        GROUP BY a.id, a.plano_id
+            SELECT 
+                a.id AS aluno_id,
+                a.plano_id,
+                MAX(c.data_checkin) AS ultimo_checkin,
+                COUNT(*) FILTER (
+                    WHERE c.data_checkin >= NOW() - INTERVAL '28 days' AND c.duracao IS NOT NULL
+                ) / 4.0 AS freq_semanal,
+                AVG(EXTRACT(EPOCH FROM c.duracao)/60.0) FILTER (
+                    WHERE c.duracao IS NOT NULL
+                ) AS duracao_media
+            FROM alunos a
+            LEFT JOIN checkins c ON a.id = c.aluno_id
+            GROUP BY a.id, a.plano_id
     """
     df = pd.read_sql_query(query, con)
     con.close()

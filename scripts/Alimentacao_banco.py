@@ -55,7 +55,7 @@ for _ in range(100):
 con.commit()
 
 # -------------------------
-# 3. Inserir check-ins aleatórios
+# 3. Inserir check-ins aleatórios (com entrada e saída)
 # -------------------------
 cur.execute("SELECT id FROM alunos")
 aluno_ids = [row[0] for row in cur.fetchall()]
@@ -64,11 +64,19 @@ for aluno_id in aluno_ids:
     for _ in range(random.randint(3, 10)):  # de 3 a 10 check-ins por aluno
         dias_atras = random.randint(0, 30)
         hora_random = random.randint(6, 22)
-        data_checkin = datetime.now() - timedelta(days=dias_atras, hours=random.randint(0, 12))
+        minuto_random = random.randint(0, 59)
+
+        # Data de check-in no passado
+        data_checkin = datetime.now() - timedelta(days=dias_atras, hours=hora_random, minutes=minuto_random)
+
+        # Duração aleatória entre 30 e 120 minutos
+        duracao_minutos = random.randint(30, 120)
+        data_checkout = data_checkin + timedelta(minutes=duracao_minutos)
+
         cur.execute("""
-            INSERT INTO checkins (aluno_id, data_checkin)
-            VALUES (%s, %s)
-        """, (aluno_id, data_checkin))
+            INSERT INTO checkins (aluno_id, data_checkin, data_checkout)
+            VALUES (%s, %s, %s)
+        """, (aluno_id, data_checkin, data_checkout))
 
 con.commit()
 cur.close()

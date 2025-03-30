@@ -73,7 +73,9 @@ cur.execute("""
     CREATE TABLE IF NOT EXISTS checkins (
         id SERIAL PRIMARY KEY,
         aluno_id INTEGER REFERENCES alunos(id),
-        data_checkin TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        data_checkin TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        data_checkout TIMESTAMP,
+        duracao INTERVAL GENERATED ALWAYS AS (data_checkout - data_checkin) STORED
     );
 """)
 
