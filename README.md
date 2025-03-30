@@ -1,4 +1,3 @@
-```markdown
 # 🏋️‍♂️ Sistema de Gestão de Academia com FastAPI, RabbitMQ e Machine Learning
 
 Este projeto é uma API REST para gerenciamento de alunos, check-ins, relatórios e previsão de churn em academias.  
@@ -22,22 +21,26 @@ Utiliza **FastAPI**, **RabbitMQ**, **PostgreSQL** e **Machine Learning** com **s
 ```
 PLANOS_ACADEMIA/
 ├── app/
-│   ├── main.py              # Inicializa a API
-│   ├── producer.py          # Envia mensagens para RabbitMQ
-│   ├── routes/              # Endpoints REST
-│   │   ├── alunos.py
-│   │   ├── checkins.py
-│   │   └── tarefas.py
-├── workers/                 # Workers que escutam as filas
+│   ├── main.py
+│   ├── producer.py
+│   └── routes/
+│       ├── alunos.py
+│       ├── checkins.py
+│       └── tarefas.py
+├── scripts/                # Scripts auxiliares
+│   ├── Criacao_banco_academia.py
+│   └── Alimentacao_banco.py
+├── workers/
 │   ├── worker_checkin.py
 │   ├── worker_relatorio.py
 │   └── worker_churn.py
-├── modelos/                 # Modelos de churn salvos (.pkl)
-├── relatorios/              # Relatórios diários gerados (.csv)
-├── banco.json               # Configuração de conexão com PostgreSQL
+├── modelos/
+├── relatorios/
+├── banco.json
 ├── requirements.txt
 └── README.md
 ```
+
 
 ---
 
@@ -75,9 +78,20 @@ pip install -r requirements.txt
 
 4. Configure o banco de dados PostgreSQL:
 
-- Crie o banco chamado `academia`
-- Execute o script SQL para criar as tabelas (não incluído aqui)
-- Preencha o arquivo `banco.json` com:
+- Crie um Server no PostgreSQL
+- Execute o script de criação das tabelas e banco:
+
+```bash
+python scripts/Criacao_banco_academia.py
+```
+
+- (Opcional) Popule o banco com dados de exemplo:
+
+```bash
+python scripts/Alimentacao_banco.py
+```
+
+- Preencha o arquivo `banco.json` com as credenciais de acesso:
 
 ```json
 {
@@ -88,6 +102,7 @@ pip install -r requirements.txt
   "port": 5433
 }
 ```
+
 
 ---
 
@@ -117,7 +132,7 @@ python workers/worker_churn.py
 
 ### 3. Teste a aplicação com script
 
-Você pode usar `test_api.py` (se criado) para registrar alunos, check-ins e acionar os workers via API:
+Você pode usar `test_api.py` (na ) para registrar alunos, check-ins e acionar os workers via API:
 
 ```bash
 python test_api.py
@@ -145,21 +160,5 @@ python test_api.py
 - Exportação de relatórios em PDF
 - Deploy com Docker + Docker Compose
 - Agendamento automático de tarefas com Celery ou cron
-
----
-
-## 🤝 Contribuição
-
-Sinta-se à vontade para abrir issues, pull requests ou sugerir melhorias.
-
----
-
-## 📜 Licença
-
-MIT - Use livremente, com os devidos créditos.
-
----
-
-```
 
 ---
