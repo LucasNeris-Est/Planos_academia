@@ -32,9 +32,12 @@ def processar_checkouts(payload):
         cur.execute("""
             UPDATE checkins
             SET data_checkout = CURRENT_TIMESTAMP
-            WHERE aluno_id = %s AND data_checkout IS NULL
-            ORDER BY data_checkin DESC
-            LIMIT 1
+            WHERE id = (
+                SELECT id FROM checkins
+                WHERE aluno_id = %s AND data_checkout IS NULL
+                ORDER BY data_checkin DESC
+                LIMIT 1
+            )
         """, (aluno_id,))
         atualizados += cur.rowcount
 

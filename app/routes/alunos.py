@@ -37,7 +37,7 @@ class AlunoCreate(BaseModel):
     plano_id: int = Field(..., example=1)
 
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "nome": "Maria Oliveira",
                 "email": "maria@email.com",
@@ -150,9 +150,18 @@ def risco_churn(id: int = Path(..., description="ID do aluno", example=42)):
         # ---------------------------
         # Carregar modelo treinado
         # ---------------------------
-        modelo_path = "modelos/modelo_churn.pkl"
+        modelo_path = os.path.join(
+        os.path.dirname(os.path.dirname(os.path.dirname(__file__))),  # sobe de alunos.py → routes → app → raiz
+        "modelos",
+        "modelo_churn.pkl"
+        )
+
         if not os.path.exists(modelo_path):
-            raise HTTPException(status_code=500, detail="Modelo de churn não encontrado. Execute o treinamento primeiro.")
+            print(f"❌ Modelo não encontrado no caminho: {modelo_path}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Modelo de churn não encontrado. Execute o treinamento primeiro.\nCaminho verificado: {modelo_path}"
+            )
 
         with open(modelo_path, "rb") as f:
             modelo = pickle.load(f)

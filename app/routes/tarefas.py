@@ -18,6 +18,22 @@ def processar_checkins_em_massa(payload: dict = Body(...)):
     send_to_queue("fila_checkin", payload)
     return {"mensagem": "Check-ins enviados para a fila"}
 
+
+# ----------------------------
+# Endpoint para registrar check-outs em massa
+# ----------------------------
+@router.post("/checkout", summary="Processar checkouts em massa")
+def processar_checkouts_em_massa(payload: dict = Body(...)):
+    """
+    Envia um payload com lista de alunos para a fila 'fila_checkout'.
+    Esperado:
+    {
+        "alunos": [1, 2, 3]
+    }
+    """
+    send_to_queue("fila_checkout", payload)
+    return {"mensagem": "Checkouts enviados para a fila"}
+
 # ----------------------------
 # Endpoint para gerar relatório de frequência
 # ----------------------------
