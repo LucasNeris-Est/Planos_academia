@@ -153,12 +153,18 @@ python scripts/test_api.py
 
 ---
 
-## 📌 Futuras melhorias
+## 📓 Exemplo de Modelo: `modelo_churn.ipynb`
 
-- Interface com Streamlit ou React
-- Exportação de relatórios em PDF
-- Deploy com Docker + Docker Compose
-- Tarefas agendadas com Celery ou cron jobs
-- Monitoramento com Prometheus + Grafana
+O arquivo `modelo_churn.ipynb`, disponível na raiz do projeto (ou na pasta `notebooks/`, se preferir organizá-lo), contém um **exemplo prático** de como o modelo preditivo de churn é construído utilizando a biblioteca **scikit-learn**.
+
+Nele, você encontrará:
+
+- Geração de dados simulados
+- Pré-processamento das variáveis
+- Treinamento com `RandomForestClassifier`
+- Avaliação e visualização do modelo
+- Salvamento do modelo em `.pkl` (formato usado pela API)
+
+💡 Esse notebook é útil para entender a lógica por trás do modelo de churn e pode ser usado como base para ajustes, testes ou apresentações.
 
 ---
