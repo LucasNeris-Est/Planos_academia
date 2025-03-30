@@ -132,7 +132,7 @@ python workers/worker_churn.py
 
 ### 3. Teste a aplicação com script
 
-Você pode usar `test_api.py` (na ) para registrar alunos, check-ins e acionar os workers via API:
+Você pode usar `test_api.py` para registrar alunos, check-ins e acionar os workers via API:
 
 ```bash
 python test_api.py
